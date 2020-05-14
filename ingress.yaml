@@ -1,0 +1,26 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: bookstore-ingress
+  namespace: bookstore
+spec:
+  rules:
+  - host: bookstore.skcc.co.kr
+    http:
+      paths:
+      - path: /reservations
+        backend:
+          serviceName: bookreservation
+          servicePort: 8081
+      - path: /booklists
+        backend:
+          serviceName: bookreservation
+          servicePort: 8081		  
+      - path: /stocks
+        backend:
+          serviceName: stockmanagement
+          servicePort: 8082
+      - path: /customers
+        backend:
+          serviceName: customermanagement
+          servicePort: 8083

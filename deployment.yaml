@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              cpu: 500m
+            requests:
+              cpu: 200m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          env:
+          - name: EMBED_TOMCAT_JAVA_OPTS
+            valueFrom:
+               configMapKeyRef:
+                  name: spring-dev
+                  key: JAVA_OPTS
+          - name: DB_URL
+            valueFrom:
+               configMapKeyRef:
+                  name: spring-dev
+                  key: DB_URL
+          - name: DB_USER
+            valueFrom:
+               secretKeyRef:
+                  name: db-dev
+                  key: DB_USER
+          - name: DB_PASS
+            valueFrom:
+               secretKeyRef:
+                  name: db-dev
+                  key: DB_PASS

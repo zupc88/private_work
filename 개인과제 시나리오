@@ -1,0 +1,45 @@
+[테스트 시나리오]
+
+
+============= 책 입고 처리 ================
+
+1. buy 통한 책 구매 입고
+http POST localhost:8084/buys  bookid="7" qty=23
+
+2. buy에서 입고 확인
+http GET localhost:8084/buys  
+
+3. stock에서 재고 확인
+http GET localhost:8082/stocks bookid="6"
+Incomed가 들어올 경우 정상
+
+
+2. buy 통한 책 구매 입고
+http POST localhost:8084/buys  bookid="5" qty=0
+http POST localhost:8081/reservations bookid="5"
+
+
+
+
+============= 장애 시 처리 여부 ================
+
+1. buy 통한 책 구매 입고
+http POST localhost:8084/buys  bookid="8" qty=28
+
+2. stock에서 재고 확인
+http GET localhost:8082/stocks bookid="8"
+결과가 나오면 정상
+
+
+
+
+
+============= 참고자료 ================
+1. stock 통한 재고 입고
+http POST localhost:8082/stocks bookid="1" qty=3
+
+
+admin5@gkn2019hotmail.onmicrosoft.com   /  skcc1234!
+
+
+

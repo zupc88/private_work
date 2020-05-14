@@ -1,0 +1,141 @@
+************************************************************************************************************************************************
+                                                                                  사전 설정 
+************************************************************************************************************************************************
+
+
+[로컬PC설정 절차]
+https://docs.microsoft.com/ko-kr/cli/azure/install-azure-cli-apt?view=azure-cli-latest
+
+
+[로그인 절차]
+로컬PC에 리눅스 실행 (없을시 스토어에서 ubuntu 설치할 것)
+https://docs.microsoft.com/ko-kr/cli/azure/install-azure-cli-apt?view=azure-cli-latest  이걸로 AZ Client 설치
+az login  (4team@gkn2019hotmail.onmicrosoft.com  / #skcc123)
+az aks get-credentials --resource-group team4_rg --name team4-aks 
+az acr login --name  ccteam4acr
+az aks update -n team4-aks  -g team4_rg --attach-acr ccteam4acr
+
+
+[리소스 구성]
+리소스 그룹: team4_rg
+클러스터명: team4-aks
+레지스트리: ccteam4acr
+네임스페이스: bookstore
+
+
+
+[Ingress Controller 구성]
+사용자 도메인 라우팅 위함. (API Gateway 전)
+kubectl create namespace ingress-basic
+helm install --name nginx-ingress stable/nginx-ingress --kube-context=team4-aks --namespace=ingress-basic
+
+root@SKCC18D00125:~# k get po -n ingress-basic
+NAME                                             READY   STATUS    RESTARTS   AGE
+nginx-ingress-controller-564bd445bc-297hw        1/1     Running   0          2m32s
+nginx-ingress-default-backend-674d599c48-97zlg   1/1     Running   0          2m32s
+
+
+
+
+[Metric Server 구성]
+POD HPA 적용하기 위해서 metric server 구성
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.6/components.yaml
+kubectl get deployment metrics-server -n kube-system
+
+root@SKCC18D00125:~/k8s/metrics-server# kubectl get deployment metrics-server -n kube-system
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+metrics-server   0/1     1            0           74m
+
+
+
+[ConfigMap]
+configmap_bookstore.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-dev
+  namespace: bookstore
+data:
+  JAVA_MODE: client
+  DB_IP: skcc_db_dev
+---
+config-prod.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-prod
+  namespace: bookstore
+data:
+  JAVA_MODE: server
+  DB_IP: skcc_db_rod
+
+
+
+
+[Secret]
+
+
+
+************************************************************************************************************************************************
+                                                                                  항목별 적용 내역
+************************************************************************************************************************************************
+
+
+
+
+
+•Pod를 생성시, Liveness와 Readiness Probe를 적용하여  준비가 되지않은 상태에서 요청을 받지 않도록 조치가 되었는가? 
+-> Liveness, Readinss 적용된 yaml 파일 준비
+
+•셀프힐링: Liveness Probe 를 통하여 어떠한 서비스의 health 상태가 지속적으로 저하됨에 따라 어떠한 임계치에서 pod 가 재생되는 것을 증명할 수 있는가? 
+-> Liveness, Readinss 적용된 yaml 파일 준비
+   (강제로 POD 삭제 후 POD 재기동 여부 확인 함)
+
+•서킷브레이커, 레이트리밋 등을 통한 장애격리와 성능효율을 높힐 수 있는가?•서킷브레이커 or 레이트리밋 적용
+ -> 안 함
+
+•리트라이 (retry) 적용
+ -> 안 함
+
+•풀-이젝션 적용 
+ -> 안 함
+
+•오토스케일러 (HPA) 를 설정하여 확장적 운영이 가능한가?•실제 워크로드를 테스트 환경으로 생성하여 (seige  or JMeter) Replicas 의 증감을 보여줄 수 있는가?
+-> metric + HPA 적용 후 seige 명령어로 부하 전달
+
+•모니터링, 앨럿팅: •장애나 성능저하의 서비스 요청 건들에 대한 분산 추적을 할 수 있는가?
+-> Azure 모니터링 항목 정리
+https://portal.azure.com/#blade/Microsoft_Azure_Monitoring/AzureMonitoringBrowseBlade/overview
+
+
+
+•SLA 지표를 수립하여 원하는 대시보드를 구성할 수 있는가?
+-> Azure Monitor 사용
+
+•SLA 위협 임계치를 설정하여 자동으로 Alert 받도록 설정 할 수 있는가?
+-> Azure Monitor Alert 임계치 적용
+
+•무정지 운영 CI/CD (10)•플랫폼에서 제공하는 파이프라인을 적용하여 서비스를 클라우드에 배포하였는가? 
+-> Azure Pipiline 적용
+
+•Contract Test :  자동화된 경계 테스트를 통하여 구현 오류나 API 계약위반를 미리 차단 가능한가? 
+-> 안 함.
+
+•Advanced•Canary Deploy :  Istio 등을 이용하여 신규버전으로의 유입률을 높혀가면서 신규버전을 서서히 배포하고 문제가 발견될 때 최소한의 노출로 롤백할 수 있는가? 
+-> 안 함.
+
+•Shadow Deploy, A/B Testing 등 각 2점
+-> How to???
+
+
+•운영 유연성 (5)•
+개발한 마이크로서비스가 클러스터에 제대로 반영되어 운영중인가 ? 
+-> 배포 완료
+
+•데이터 저장소를 분리하기 위한 Persistence Volume과 Persistence Volume Claim 을 적절히 사용하였는가? 
+-> 기본 로그 저장위한 PV생성 (Azure Files 생성)
+
+•ConfigMap과 Secret 을 사용할 수 있는가? 
+-> ConfigMap으로 DEV/PROD구성
+
+Secret으로 DB 암호 구성

@@ -1,0 +1,151 @@
+****************************************************************************************************
+                                            Auto scaling 테스트
+****************************************************************************************************
+■ 목표: 
+부하가 과다하게 발생 할 경우, POD가 자동으로 증설됨
+
+■ 결과: 
+Stress 테스트 통해 시스템 Capacity가 초과되는 Request 요청시 HPA에 의해 POD자동 증가
+
+■ 테스트 절차: 
+가. 부하 발생 전
+NAME                REFERENCE                  TARGETS    MINPODS   MAXPODS   REPLICAS   AGE
+reservations2-hpa   Deployment/reservations2   1%/10%   2         4         2          12m
+
+나. 부하 발생 후
+root@SKCC18D00125:~# kubectl get hpa -n bookstore
+NAME                REFERENCE                  TARGETS    MINPODS   MAXPODS   REPLICAS   AGE
+reservations2-hpa   Deployment/reservations2   125%/10%   2         4         4          12m
+
+
+root@SKCC18D00125:~# siege -c25 -t1M -d1 www.naver.com
+Transactions:                    311 hits
+Availability:                 100.00 %
+Elapsed time:                   1.20 secs
+Data transferred:               0.78 MB
+Response time:                  0.09 secs
+Transaction rate:             259.17 trans/sec
+Throughput:                     0.65 MB/sec
+Concurrency:                   23.87
+Successful transactions:          50
+Failed transactions:               0
+Longest transaction:            0.34
+Shortest transaction:           0.03
+
+
+
+
+ 
+■ 참고 자료: HPA설정 내역
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-hpa
+spec:
+  maxReplicas: 4 # define max replica count
+  minReplicas: 2  # define min replica count
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx
+  targetCPUUtilizationPercentage: 10 # target CPU utilization 
+
+
+
+
+****************************************************************************************************
+                                            Auto-Healing 테스트
+****************************************************************************************************
+■ 목표: 
+POD에 예상치 못한 장애가 발생 할 경우, POD가 자동으로 재부팅됨.
+
+■ 결과: 
+POD에 Hang 발생 시 liveness Probe 설정에 의해 자동으로 POD재부팅 됨.
+
+■ 테스트 절차
+장애 시나리오에 따라 WAS Hang 발생시, 아래와 같이 재부팅 함.
+Events:
+  Type     Reason     Age                 From                                        Message
+  Normal   Created    27s (x3 over 110s)  kubelet, aks-agentpool-21044422-vmss000000  Created container reservation
+  Warning  Unhealthy  27s (x6 over 102s)  kubelet, aks-agentpool-21044422-vmss000000  Liveness probe failed: Get http://10.244.0.57:8080/: dial tcp 10.244.0.57:80: connect: connection refused
+  Normal   Killing    27s (x2 over 72s)   kubelet, aks-agentpool-21044422-vmss000000  Container reservation failed liveness probe, will be restarted
+  Normal   Started    26s (x3 over 109s)  kubelet, aks-agentpool-21044422-vmss000000  Started container reservation
+  
+
+■ 참고 자료: Probe 설정 내역
+          livenessProbe:
+            httpGet:
+              path: /reservations
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /reservations
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+			
+			
+
+			
+****************************************************************************************************
+                                            ConfigMap / Secret 적용
+****************************************************************************************************
+■ 목표: 
+환경 변수 적용을 통해 용도 별 구분 인자값으로 활용
+
+■ 결과: 
+CnfigMap: 개발기/운영기 구분자료 활용
+kubectl exec -ti reservations2-6dd99458f8-ncfng -n bookstore env | egrep EMBED_TOMCAT_JAVA_OPTS
+EMBED_TOMCAT_JAVA_OPTS=-client
+
+Secret: DB접속 정보 저장 목적으로 활용
+kubectl exec -ti reservations2-6dd99458f8-ncfng -n bookstore env | egrep "DB_USER|DB_PASS"
+DB_USER=myuser
+DB_PASS=#skcc123
+
+■ 참고 자료: ConfigMap/Secret 설정 내역
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spring-dev
+  namespace: bookstore
+data:
+  DB_URL: skcc-bookstore-dev
+  JAVA_OPTS: -client
+---  
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-dev
+  namespace: bookstore
+data:
+  DB_USER: bXl1c2VyCg==
+  DB_PASS: I3NrY2MxMjMK
+  
+  
+  
+
+			
+****************************************************************************************************
+                                                 PV / PVC 적용
+****************************************************************************************************
+■ 목표: 
+Persistent Volume 사용을 통해, 사용자 데이터를 영구 저장
+
+■ 결과: 
+아래와 같이 각 POD에서는 PV가 마운트 되어 있으며,
+향후 첨부파일 요건, 덤프 저장, 로그 저장 시에 활용할 수 있음.
+
+
+■ 참고 자료: Persistent Volume 설정 내역
+
+
+
+****************************************************************************************************
+                                                 PV / PVC 적용
+****************************************************************************************************
